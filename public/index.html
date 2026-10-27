@@ -1,35 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice Auth</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #0069ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px;}
+        button:hover { background: #0056d6; }
+        .toggle-link { text-align: center; display: block; margin-top: 15px; color: #0069ff; cursor: pointer; font-size: 14px; text-decoration: underline; }
+        #message { color: red; text-align: center; margin-top: 10px; font-size: 14px; }
+        #dashboard { display: none; text-align: center; }
+        .success { color: green; }
+    </style>
+</head>
 <body>
-  <h2>Practice Auth</h2>
-  <div id="msg"></div>
-  <button onclick="testWhoami()">Test /api/whoami</button>
-  <button onclick="login()">Login (test@test.com / password)</button>
-  <button onclick="logout()">Logout</button>
-  <hr>
-  <p>Open DevTools → Console and type: <code>document.cookie</code></p>
 
-  <script>
-    async function testWhoami() {
-      const r = await fetch('/api/whoami', { credentials: 'include' });
-      const data = await r.json();
-      document.getElementById('msg').textContent = JSON.stringify(data);
-    }
-    async function login() {
-      const r = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: 'test@test.com', password: 'password' })
-      });
-      const data = await r.json();
-      document.getElementById('msg').textContent = JSON.stringify(data);
-    }
-    async function logout() {
-      const r = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-      const data = await r.json();
-      document.getElementById('msg').textContent = JSON.stringify(data);
-    }
-  </script>
+    <!-- LOGIN / SIGNUP VIEW -->
+    <div id="auth-view" class="card">
+        <h2 id="form-title">Login</h2>
+        <input type="email" id="email" placeholder="Email (e.g., test@test.com)">
+        <input type="password" id="password" placeholder="Password (e.g., password)">
+        <button id="submit-btn" onclick="handleSubmit()">Login</button>
+        <span class="toggle-link" onclick="toggleView()">Need an account? Sign up</span>
+        <div id="message"></div>
+    </div>
+
+    <!-- DASHBOARD VIEW (Protected) -->
+    <div id="dashboard" class="card">
+        <h2 class="success">Dashboard</h2>
+        <p>You are logged in!</p>
+        <p id="user-info"></p>
+        <button onclick="logout()" style="background: #dc3545; margin-top: 20px;">Logout</button>
+        <div style="margin-top:20px; font-size: 12px; color: #666;">
+            Open DevTools Console and type <code>document.cookie</code>.<br>
+            You will see no auth token here.
+        </div>
+    </div>
+
+    <script>
+        let isLoginMode = true;
+
+        // 1. Check if already logged in when page loads
+        window.onload = async () => {
+            try {
+                // We call /api/me. The browser automatically sends the HttpOnly cookie!
+                const res = await fetch('/api/me', { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    showDashboard(data);
+                }
+            } catch (e) {
+                console.log("Not logged in yet.");
+            }
+        };
+
+        // 2. Toggle between Login and Signup
+        function toggleView() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('form-title').innerText = isLoginMode ? 'Login' : 'Sign Up';
+            document.getElementById('submit-btn').innerText = isLoginMode ? 'Login' : 'Sign Up';
+            document.getElementById('message').innerText = '';
+        }
+
+        // 3. Handle Login / Signup submission
+        async function handleSubmit() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const endpoint = isLoginMode ? '/api/login' : '/api/signup';
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', // CRITICAL: Tells browser to accept cookies
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    // If successful, the backend set the HttpOnly cookie.
+                    // We just show the dashboard, no tokens to save!
+                    showDashboard(data);
+                } else {
+                    document.getElementById('message').innerText = data.message || "Error";
+                }
+            } catch (err) {
+                document.getElementById('message').innerText = "Server error.";
+            }
+        }
+
+        // 4. Show dashboard and hide forms
+        function showDashboard(data) {
+            document.getElementById('auth-view').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('user-info').innerText = `Logged in as: ${data.user?.email || 'User'}`;
+        }
+
+        // 5. Logout
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+            // Clear view and reload
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('auth-view').style.display = 'block';
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('message').innerText = '';
+        }
+    </script>
 </body>
 </html>

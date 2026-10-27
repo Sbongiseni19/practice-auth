@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>Practice Auth</h2>
+  <div id="msg"></div>
+  <button onclick="testWhoami()">Test /api/whoami</button>
+  <button onclick="login()">Login (test@test.com / password)</button>
+  <button onclick="logout()">Logout</button>
+  <hr>
+  <p>Open DevTools → Console and type: <code>document.cookie</code></p>
+
+  <script>
+    async function testWhoami() {
+      const r = await fetch('/api/whoami', { credentials: 'include' });
+      const data = await r.json();
+      document.getElementById('msg').textContent = JSON.stringify(data);
+    }
+    async function login() {
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: 'test@test.com', password: 'password' })
+      });
+      const data = await r.json();
+      document.getElementById('msg').textContent = JSON.stringify(data);
+    }
+    async function logout() {
+      const r = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+      const data = await r.json();
+      document.getElementById('msg').textContent = JSON.stringify(data);
+    }
+  </script>
+</body>
+</html>
